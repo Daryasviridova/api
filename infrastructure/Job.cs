@@ -8,10 +8,12 @@ namespace api.infrastructure
     public class Job : BackgroundService
     {
         private readonly IServiceProvider _serviceProvider;
+        private readonly ILogger _logger;
 
-        public Job(IServiceProvider serviceProvider)
+        public Job(IServiceProvider serviceProvider, ILogger logger)
         {
             _serviceProvider = serviceProvider;
+            _logger = logger;
         }
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -33,23 +35,39 @@ namespace api.infrastructure
 
                 while (!stoppingToken.IsCancellationRequested)
                 {
-                    var json = await httpClient.GetFromJsonAsync<RatesResponse>("https://www.cbr-xml-daily.ru/daily_json.js");
-
-                    dbContext.CurrencyRates.Add(new CurrencyRate
+                    try
                     {
-                        CurrencyId = usdCurrency.Id,
-                        Rate = json.Valute.USD.Value,
-                        Date = DateTime.UtcNow
-                    });
-                    dbContext.CurrencyRates.Add(new CurrencyRate
+                        _logger.LogInformation("Запрос данных о курсах валют.");
+                        var json = await httpClient.GetFromJsonAsync<RatesResponse>("https://www.cbr-xml-daily.ru/daily_json.js");
+
+                        dbContext.CurrencyRates.Add(new CurrencyRate
+                        {
+                            CurrencyId = usdCurrency.Id,
+                            Rate = json.Valute.USD.Value,
+                            Date = DateTime.UtcNow
+                        });
+                        dbContext.CurrencyRates.Add(new CurrencyRate
+                        {
+                            CurrencyId = eurCurrency.Id,
+                            Rate = json.Valute.EUR.Value,
+                            Date = DateTime.UtcNow
+                        });
+
+
+                        await dbContext.SaveChangesAsync();
+                        _logger.LogInformation("Данные о курсах валют успешно сохранены.");
+                    }
+                    catch (HttpRequestException httpEx)
                     {
-                        CurrencyId = eurCurrency.Id,
-                        Rate = json.Valute.EUR.Value,
-                        Date = DateTime.UtcNow
-                    });
+                        // Логирование ошибки запроса
+                        _logger.LogError(httpEx, "Ошибка запроса к API: {Message}", httpEx.Message);
+                    }
+                    catch (Exception ex)
+                    {
+                        // Логирование других ошибок
+                        _logger.LogError(ex, "Произошла ошибка: {Message}", ex.Message);
+                    }
 
-
-                    await dbContext.SaveChangesAsync();
                     await Task.Delay(1000, stoppingToken);
                 }
             }
