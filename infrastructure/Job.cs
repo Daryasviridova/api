@@ -38,23 +38,23 @@ namespace api.infrastructure
                     try
                     {
                         _logger.LogInformation("Запрос данных о курсах валют.");
-                        var json = await httpClient.GetFromJsonAsync<RatesResponse>("https://www.cbr-xml-daily.ru/daily_json.js");
+                    var json = await httpClient.GetFromJsonAsync<RatesResponse>("https://www.cbr-xml-daily.ru/daily_json.js");
 
-                        dbContext.CurrencyRates.Add(new CurrencyRate
-                        {
-                            CurrencyId = usdCurrency.Id,
-                            Rate = json.Valute.USD.Value,
-                            Date = DateTime.UtcNow
-                        });
-                        dbContext.CurrencyRates.Add(new CurrencyRate
-                        {
-                            CurrencyId = eurCurrency.Id,
-                            Rate = json.Valute.EUR.Value,
-                            Date = DateTime.UtcNow
-                        });
+                    dbContext.CurrencyRates.Add(new CurrencyRate
+                    {
+                        CurrencyId = usdCurrency.Id,
+                        Rate = json.Valute.USD.Value,
+                        Date = DateTime.UtcNow
+                    });
+                    dbContext.CurrencyRates.Add(new CurrencyRate
+                    {
+                        CurrencyId = eurCurrency.Id,
+                        Rate = json.Valute.EUR.Value,
+                        Date = DateTime.UtcNow
+                    });
 
 
-                        await dbContext.SaveChangesAsync();
+                    await dbContext.SaveChangesAsync();
                         _logger.LogInformation("Данные о курсах валют успешно сохранены.");
                     }
                     catch (HttpRequestException httpEx)
